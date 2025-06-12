@@ -2,195 +2,307 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Deciph</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    /* -- Reset & Base -- */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', sans-serif;
       background-color: #111;
-      color: #f4f4f4;
-      text-align: center;
-      padding: 20px;
-    }
-
-    h1 {
-      color: #66fcf1;
-    }
-
-    .board {
+      color: #eee;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      margin-top: 20px;
+      height: 100vh;
+      overflow: hidden;
     }
+    button { cursor: pointer; }
 
-    .row {
-      display: flex;
-      gap: 10px;
-    }
-
-    .cell {
-      width: 40px;
-      height: 50px;
-      border: 2px solid #333;
+    /* -- Overlay / Start Screen -- */
+    #startScreen {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #111;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
-      background-color: #1e1e1e;
-      color: white;
+      z-index: 10;
     }
-
-    .green { background-color: #2ecc71; }
-    .yellow { background-color: #f1c40f; color: black; }
-    .gray { background-color: #555; }
-
-    input {
-      padding: 10px;
-      font-size: 18px;
-      width: 100px;
-      margin-top: 15px;
+    #startCard {
+      background: #222;
+      padding: 30px 40px;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 320px;
     }
-
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin-top: 10px;
-      background-color: #66fcf1;
+    #startCard h1 {
+      margin-bottom: 20px;
+      font-size: 2rem;
+      color: #66fcf1;
+    }
+    #startCard p {
+      margin-bottom: 25px;
+      line-height: 1.4;
+      color: #ccc;
+    }
+    #startCard button {
+      background: #66fcf1;
       color: #111;
       border: none;
-      cursor: pointer;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 1rem;
     }
 
-    .hint {
+    /* -- Game Screen Layout -- */
+    #gameScreen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      align-items: center;
+      justify-content: flex-start;
+      width: 100%;
+    }
+
+    /* -- Header / Stats -- */
+    #header {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    #header h1 {
+      font-size: 1.8rem;
+      color: #66fcf1;
+    }
+    .stats span {
+      font-size: 1.1rem;
+      margin-left: 12px;
+    }
+    #timer { color: #78e08f; }
+
+    /* -- Hint -- */
+    #hint {
       font-style: italic;
       color: #aaa;
-      margin-top: 10px;
+      margin-bottom: 15px;
     }
 
-    .score {
-      margin-top: 20px;
-      font-size: 18px;
+    /* -- Guess Row -- */
+    #guessRow {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
     }
+    .cell {
+      width: 50px;
+      height: 60px;
+      background: #222;
+      border: 2px solid #333;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      user-select: none;
+    }
+    .green { background: #2ecc71; border-color: #2ecc71; }
+    .yellow { background: #f1c40f; border-color: #f1c40f; color: #111; }
+    .gray   { background: #555; border-color: #555; }
+
+    /* -- Number Pad -- */
+    #numPad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      max-width: 240px;
+    }
+    #numPad button {
+      background: #222;
+      border: 2px solid #333;
+      border-radius: 6px;
+      padding: 14px 0;
+      font-size: 1.2rem;
+      color: #eee;
+      transition: background 0.15s;
+    }
+    #numPad button:hover {
+      background: #2c2c2c;
+    }
+    .wide { grid-column: span 2; }
+
   </style>
 </head>
 <body>
-  <h1>Deciph</h1>
-  <div class="hint" id="hint"></div>
-  <input id="guessInput" type="text" maxlength="5" placeholder="12345" />
-  <br />
-  <button onclick="submitGuess()">Guess</button>
-  <div class="board" id="board"></div>
-  <div class="score" id="score">Score: 0</div>
+
+  <!-- Start Screen -->
+  <div id="startScreen">
+    <div id="startCard">
+      <h1>Deciph</h1>
+      <p>Crack as many secret 5-digit codes as you can in 60 seconds.<br>
+         Each code has a hidden pattern and a hint.</p>
+      <button onclick="startGame()">Let's Go!</button>
+    </div>
+  </div>
+
+  <!-- Main Game -->
+  <div id="gameScreen" style="display:none;">
+    <div id="header">
+      <h1>Deciph</h1>
+      <div class="stats">
+        <span id="score">Score: 0</span>
+        <span id="timer">Time: 60</span>
+      </div>
+    </div>
+
+    <div id="hint">Hint: —</div>
+
+    <div id="guessRow">
+      <div class="cell"></div>
+      <div class="cell"></div>
+      <div class="cell"></div>
+      <div class="cell"></div>
+      <div class="cell"></div>
+    </div>
+
+    <div id="numPad">
+      <button onclick="onNum('1')">1</button>
+      <button onclick="onNum('2')">2</button>
+      <button onclick="onNum('3')">3</button>
+      <button onclick="onNum('4')">4</button>
+      <button onclick="onNum('5')">5</button>
+      <button onclick="onNum('6')">6</button>
+      <button onclick="onNum('7')">7</button>
+      <button onclick="onNum('8')">8</button>
+      <button onclick="onNum('9')">9</button>
+      <button onclick="onBack()">←</button>
+      <button onclick="onNum('0')">0</button>
+      <button onclick="onEnter()">⏎</button>
+    </div>
+  </div>
 
   <script>
+    // -- Patterns & Hints --
     const patterns = [
-      { rule: n => n.split('').every(d => d % 2 === 0), hint: "All digits are even" },
-      { rule: n => n.split('').every((d, i, a) => i === 0 || d > a[i - 1]), hint: "Digits are increasing" },
-      { rule: n => n[0] === n[4] && n[1] === n[3], hint: "Pattern: ABBA" },
-      { rule: n => new Set(n).size < 5, hint: "At least one digit repeats" },
-      { rule: n => n.split('').reduce((a, b) => +a + +b, 0) <= 20, hint: "Digits add up to 20 or less" },
+      { test: s => s.split('').every(d=>d%2===0), hint: "All digits are even" },
+      { test: s => s.split('').every((d,i,a)=>i===0||d> a[i-1]), hint: "Digits are strictly increasing" },
+      { test: s => s[0]===s[4] && s[1]===s[3], hint: "Pattern: ABBA" },
+      { test: s => new Set(s).size < 5, hint: "At least one digit repeats" },
+      { test: s => s.split('').reduce((a,b)=>+a + +b)<=20, hint: "Digits add up to 20 or less" },
     ];
 
-    let code = "";
-    let attempts = 0;
-    let score = 0;
-    let totalScore = 0;
+    let code     = "";
+    let guess    = [];
+    let score    = 0;
+    let timeLeft = 60;
+    let timerId;
 
-    const board = document.getElementById("board");
-    const hintEl = document.getElementById("hint");
-    const input = document.getElementById("guessInput");
-    const scoreEl = document.getElementById("score");
+    const startScreen = document.getElementById("startScreen");
+    const gameScreen  = document.getElementById("gameScreen");
+    const scoreEl     = document.getElementById("score");
+    const timerEl     = document.getElementById("timer");
+    const hintEl      = document.getElementById("hint");
+    const cells       = document.querySelectorAll("#guessRow .cell");
 
-    function newRound() {
-      board.innerHTML = "";
-      input.value = "";
-      input.disabled = false;
-      attempts = 0;
+    function startGame() {
+      startScreen.style.display = "none";
+      gameScreen.style.display  = "flex";
+      score = 0;
+      timeLeft = 60;
+      updateScore();
+      updateTimer();
+      newCode();
 
-      // Generate 5-digit code that passes a random pattern
-      let pattern = patterns[Math.floor(Math.random() * patterns.length)];
-      let num;
+      timerId = setInterval(() => {
+        timeLeft--;
+        updateTimer();
+        if (timeLeft <= 0) endGame();
+      }, 1000);
+    }
+
+    function newCode() {
+      guess = [];
+      cells.forEach(c => {
+        c.textContent = "";
+        c.className = "cell";
+      });
+
+      // pick a random pattern and generate a valid code
+      const pat = patterns[Math.floor(Math.random() * patterns.length)];
+      let n;
       do {
-        num = Math.floor(10000 + Math.random() * 90000).toString();
-      } while (!pattern.rule(num));
-      code = num;
-      hintEl.textContent = "Hint: " + pattern.hint;
-      console.log("Code:", code); // 👀 For testing
+        n = ("" + Math.floor(10000 + Math.random() * 90000));
+      } while (!pat.test(n));
+      code = n;
+      hintEl.textContent = "Hint: " + pat.hint;
+      console.log("🕵️‍♂️ code:", code);
     }
 
-    function submitGuess() {
-      const guess = input.value.trim();
-      if (!/^\d{5}$/.test(guess)) {
-        alert("Enter a 5-digit number.");
-        return;
-      }
-
-      if (attempts >= 6) return;
-
-      const row = document.createElement("div");
-      row.className = "row";
-
-      const used = code.split('');
-      const guessChars = guess.split('');
-
-      guessChars.forEach((char, i) => {
-        const cell = document.createElement("div");
-        cell.className = "cell";
-        cell.textContent = char;
-
-        if (char === code[i]) {
-          cell.classList.add("green");
-          used[i] = null; // consume this match
-        }
-        row.appendChild(cell);
-      });
-
-      // Second pass for yellows
-      guessChars.forEach((char, i) => {
-        const cell = row.children[i];
-        if (!cell.classList.contains("green")) {
-          const index = used.indexOf(char);
-          if (index !== -1) {
-            cell.classList.add("yellow");
-            used[index] = null;
-          } else {
-            cell.classList.add("gray");
-          }
-        }
-      });
-
-      board.appendChild(row);
-      attempts++;
-
-      if (guess === code) {
-        const roundScore = 60 - (attempts - 1) * 10;
-        totalScore += roundScore;
-        input.disabled = true;
-        scoreEl.textContent = `You cracked it! +${roundScore} points — Total Score: ${totalScore}`;
-        setTimeout(() => {
-          if (confirm("Play next round?")) {
-            scoreEl.textContent = `Score: ${totalScore}`;
-            newRound();
-          }
-        }, 500);
-      } else if (attempts >= 6) {
-        input.disabled = true;
-        scoreEl.textContent = `Out of tries! The code was ${code}. Total Score: ${totalScore}`;
-        setTimeout(() => {
-          if (confirm("Try another round?")) {
-            scoreEl.textContent = `Score: ${totalScore}`;
-            newRound();
-          }
-        }, 500);
-      }
-
-      input.value = "";
-      input.focus();
+    function updateScore() {
+      scoreEl.textContent = "Score: " + score;
     }
 
-    newRound();
+    function updateTimer() {
+      timerEl.textContent = "Time: " + timeLeft;
+    }
+
+    function onNum(d) {
+      if (guess.length < 5) {
+        guess.push(d);
+        cells[guess.length - 1].textContent = d;
+      }
+    }
+
+    function onBack() {
+      if (!guess.length) return;
+      cells[guess.length - 1].textContent = "";
+      guess.pop();
+    }
+
+    function onEnter() {
+      if (guess.length !== 5) return;
+      const g = guess.join("");
+      const used = code.split("");
+
+      // first pass: correct place (green)
+      guess.forEach((d, i) => {
+        if (d === code[i]) {
+          cells[i].classList.add("green");
+          used[i] = null;
+        }
+      });
+      // second pass: wrong place but exists (yellow) or absent (gray)
+      guess.forEach((d, i) => {
+        if (cells[i].classList.contains("green")) return;
+        const idx = used.indexOf(d);
+        if (idx !== -1) {
+          cells[i].classList.add("yellow");
+          used[idx] = null;
+        } else {
+          cells[i].classList.add("gray");
+        }
+      });
+
+      // correct?
+      if (g === code) {
+        const points = 50 + timeLeft;
+        score += points;
+        updateScore();
+        setTimeout(newCode, 600);
+      } else {
+        setTimeout(newCode, 600);
+      }
+    }
+
+    function endGame() {
+      clearInterval(timerId);
+      alert(`⏰ Time's up! Your final score is ${score}.`);
+      // reload or restart
+      window.location.reload();
+    }
   </script>
 </body>
 </html>
