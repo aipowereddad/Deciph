@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Deciph</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #111;
+      color: #f4f4f4;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #66fcf1;
+    }
+
+    .board {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .cell {
+      width: 40px;
+      height: 50px;
+      border: 2px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      background-color: #1e1e1e;
+      color: white;
+    }
+
+    .green { background-color: #2ecc71; }
+    .yellow { background-color: #f1c40f; color: black; }
+    .gray { background-color: #555; }
+
+    input {
+      padding: 10px;
+      font-size: 18px;
+      width: 100px;
+      margin-top: 15px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-top: 10px;
+      background-color: #66fcf1;
+      color: #111;
+      border: none;
+      cursor: pointer;
+    }
+
+    .hint {
+      font-style: italic;
+      color: #aaa;
+      margin-top: 10px;
+    }
+
+    .score {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Deciph</h1>
+  <div class="hint" id="hint"></div>
+  <input id="guessInput" type="text" maxlength="5" placeholder="12345" />
+  <br />
+  <button onclick="submitGuess()">Guess</button>
+  <div class="board" id="board"></div>
+  <div class="score" id="score">Score: 0</div>
+
+  <script>
+    const patterns = [
+      { rule: n => n.split('').every(d => d % 2 === 0), hint: "All digits are even" },
+      { rule: n => n.split('').every((d, i, a) => i === 0 || d > a[i - 1]), hint: "Digits are increasing" },
+      { rule: n => n[0] === n[4] && n[1] === n[3], hint: "Pattern: ABBA" },
+      { rule: n => new Set(n).size < 5, hint: "At least one digit repeats" },
+      { rule: n => n.split('').reduce((a, b) => +a + +b, 0) <= 20, hint: "Digits add up to 20 or less" },
+    ];
+
+    let code = "";
+    let attempts = 0;
+    let score = 0;
+    let totalScore = 0;
+
+    const board = document.getElementById("board");
+    const hintEl = document.getElementById("hint");
+    const input = document.getElementById("guessInput");
+    const scoreEl = document.getElementById("score");
+
+    function newRound() {
+      board.innerHTML = "";
+      input.value = "";
+      input.disabled = false;
+      attempts = 0;
+
+      // Generate 5-digit code that passes a random pattern
+      let pattern = patterns[Math.floor(Math.random() * patterns.length)];
+      let num;
+      do {
+        num = Math.floor(10000 + Math.random() * 90000).toString();
+      } while (!pattern.rule(num));
+      code = num;
+      hintEl.textContent = "Hint: " + pattern.hint;
+      console.log("Code:", code); // 👀 For testing
+    }
+
+    function submitGuess() {
+      const guess = input.value.trim();
+      if (!/^\d{5}$/.test(guess)) {
+        alert("Enter a 5-digit number.");
+        return;
+      }
+
+      if (attempts >= 6) return;
+
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const used = code.split('');
+      const guessChars = guess.split('');
+
+      guessChars.forEach((char, i) => {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.textContent = char;
+
+        if (char === code[i]) {
+          cell.classList.add("green");
+          used[i] = null; // consume this match
+        }
+        row.appendChild(cell);
+      });
+
+      // Second pass for yellows
+      guessChars.forEach((char, i) => {
+        const cell = row.children[i];
+        if (!cell.classList.contains("green")) {
+          const index = used.indexOf(char);
+          if (index !== -1) {
+            cell.classList.add("yellow");
+            used[index] = null;
+          } else {
+            cell.classList.add("gray");
+          }
+        }
+      });
+
+      board.appendChild(row);
+      attempts++;
+
+      if (guess === code) {
+        const roundScore = 60 - (attempts - 1) * 10;
+        totalScore += roundScore;
+        input.disabled = true;
+        scoreEl.textContent = `You cracked it! +${roundScore} points — Total Score: ${totalScore}`;
+        setTimeout(() => {
+          if (confirm("Play next round?")) {
+            scoreEl.textContent = `Score: ${totalScore}`;
+            newRound();
+          }
+        }, 500);
+      } else if (attempts >= 6) {
+        input.disabled = true;
+        scoreEl.textContent = `Out of tries! The code was ${code}. Total Score: ${totalScore}`;
+        setTimeout(() => {
+          if (confirm("Try another round?")) {
+            scoreEl.textContent = `Score: ${totalScore}`;
+            newRound();
+          }
+        }, 500);
+      }
+
+      input.value = "";
+      input.focus();
+    }
+
+    newRound();
+  </script>
+</body>
+</html>
